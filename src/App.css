@@ -1,0 +1,327 @@
+.app {
+  padding: 16px;
+  padding-bottom: 40px;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #1d1d1f;
+}
+
+.date {
+  font-size: 15px;
+  color: #86868b;
+  margin-top: 4px;
+}
+
+.save-confirmation {
+  background: #34c759;
+  color: white;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 15px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.field {
+  margin-bottom: 24px;
+}
+
+.field-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin-bottom: 10px;
+}
+
+.segmented-control {
+  display: flex;
+  gap: 6px;
+  background: #e5e5ea;
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.segmented-option {
+  flex: 1;
+  padding: 10px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1d1d1f;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.segmented-option.selected {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.pain-selector {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.pain-btn {
+  flex: 1;
+  aspect-ratio: 1;
+  max-width: 36px;
+  border: none;
+  background: #e5e5ea;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d1d1f;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pain-btn.selected {
+  background: #007aff;
+  color: white;
+  transform: scale(1.05);
+}
+
+.activity-types {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.activity-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border: 2px solid #e5e5ea;
+  background: #fff;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.activity-type-btn.selected {
+  border-color: #007aff;
+  background: #f0f8ff;
+}
+
+.activity-icon {
+  font-size: 24px;
+}
+
+.activity-type-btn span:last-child {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.duration-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.duration-btn {
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: #007aff;
+  color: white;
+  border-radius: 50%;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.duration-btn:active {
+  transform: scale(0.95);
+}
+
+.duration-value {
+  font-size: 20px;
+  font-weight: 600;
+  min-width: 80px;
+  text-align: center;
+}
+
+.add-activity-btn {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  background: #007aff;
+  color: white;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 16px;
+}
+
+.activity-list {
+  margin-bottom: 12px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f5f5f7;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.remove-activity-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: #ff3b30;
+  color: white;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-activity-trigger {
+  width: 100%;
+  padding: 14px;
+  border: 2px dashed #007aff;
+  background: transparent;
+  color: #007aff;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.more-details-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  background: #e5e5ea;
+  color: #1d1d1f;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 24px;
+}
+
+.more-details {
+  margin-bottom: 24px;
+}
+
+.notes-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e5e5ea;
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.save-btn {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  background: #34c759;
+  color: white;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.save-btn:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.modal-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.bottom-sheet {
+  background: #fff;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+  border-radius: 20px 20px 0 0;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.bottom-sheet h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 17px;
+  color: #86868b;
+}
