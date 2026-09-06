@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import './App.css'
+import { cloudSyncEnabled, loadCloudLogs, saveCloudLog } from './storage'
 
 const STORAGE_KEY = 'rehablab_logs'
 const DRAFT_KEY = 'rehablab_draft'
@@ -305,33 +306,54 @@ function App() {
   const [editingActivity, setEditingActivity] = useState(null)
   const [isDirty, setIsDirty] = useState(false)
   const [screen, setScreen] = useState('today')
+  const [syncStatus, setSyncStatus] = useState(cloudSyncEnabled ? 'syncing' : 'local')
 
   useEffect(() => {
-    const loadedLogs = loadLogs()
-    setLogs(loadedLogs)
+    let cancelled = false
+    const hydrate = async () => {
+      const localLogs = loadLogs()
+      let loadedLogs = localLogs
 
-    const todayKey = getTodayKey()
-    const existingLog = loadedLogs[todayKey]
-    
-    if (existingLog) {
-      setCurrentLog({ ...existingLog })
-      setShowMoreDetails(Boolean(existingLog.notes || existingLog.sleepingPosition))
-    } else {
+      if (cloudSyncEnabled) {
+        try {
+          const cloudLogs = await loadCloudLogs()
+          if (cloudLogs) {
+            loadedLogs = { ...localLogs, ...cloudLogs }
+            saveLogs(loadedLogs)
+            if (!cancelled) setSyncStatus('synced')
+          }
+        } catch (error) {
+          console.warn('Cloud sync unavailable; using local logs.', error)
+          if (!cancelled) setSyncStatus('offline')
+        }
+      }
+
+      if (cancelled) return
+      setLogs(loadedLogs)
+
+      const todayKey = getTodayKey()
+      const existingLog = loadedLogs[todayKey]
+      if (existingLog) {
+        setCurrentLog({ ...existingLog })
+        setShowMoreDetails(Boolean(existingLog.notes || existingLog.sleepingPosition))
+        return
+      }
+
       const draft = loadDraft()
       if (draft && draft.date === todayKey && !draft.savedAt) {
         setCurrentLog({ ...getDefaultLog(), ...draft })
         setShowMoreDetails(Boolean(draft.notes || draft.sleepingPosition))
-      } else {
-        const defaultLog = getDefaultLog()
-        const yesterdayLog = loadedLogs[getYesterdayKey()]
-        
-        if (yesterdayLog?.activities?.length > 0) {
-          defaultLog.activities = [...yesterdayLog.activities]
-        }
-        
-        setCurrentLog(defaultLog)
+        return
       }
+
+      const defaultLog = getDefaultLog()
+      const yesterdayLog = loadedLogs[getYesterdayKey()]
+      if (yesterdayLog?.activities?.length > 0) defaultLog.activities = [...yesterdayLog.activities]
+      setCurrentLog(defaultLog)
     }
+
+    hydrate()
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
@@ -362,7 +384,7 @@ function App() {
     }))
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const todayKey = getTodayKey()
     const savedLog = {
       ...currentLog,
@@ -378,6 +400,17 @@ function App() {
     setCurrentLog(savedLog)
     setSaved(true)
     setIsDirty(false)
+
+    if (cloudSyncEnabled) {
+      setSyncStatus('syncing')
+      try {
+        await saveCloudLog(savedLog)
+        setSyncStatus('synced')
+      } catch (error) {
+        console.warn('Cloud save failed; the log is stored locally.', error)
+        setSyncStatus('offline')
+      }
+    }
     
     setTimeout(() => setSaved(false), 3000)
   }
@@ -401,6 +434,9 @@ function App() {
         <p className="header-eyebrow">DAILY CHECK-IN</p>
         <h1>How are you feeling?</h1>
         <p className="date">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} <span>·</span> takes less than a minute</p>
+        <p className={`sync-status ${syncStatus}`} aria-live="polite">
+          {syncStatus === 'synced' ? '☁ Synced' : syncStatus === 'syncing' ? '↻ Syncing…' : syncStatus === 'offline' ? 'Offline · saved on this device' : 'Saved on this device'}
+        </p>
       </header>
 
       {saved && (

@@ -104,6 +104,10 @@
 }
 
 .date span { color: #aac0bb; padding: 0 3px; }
+.sync-status { margin-top: 9px; color: #7b9991; font-size: 12px; font-weight: 700; }
+.sync-status.synced { color: #287d6d; }
+.sync-status.syncing { color: #78918b; }
+.sync-status.offline { color: #a47b52; }
 
 .checkin-card {
   background: #fff;
