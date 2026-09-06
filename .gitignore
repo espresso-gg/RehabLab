@@ -1,1 +1,13 @@
-Nothing needs to be added to .gitignore since only a configuration file (`vercel.json`) was added, which is a source/config file that should be tracked in version control.
+# Local environment files
+.env
+.env.*
+
+# Dependencies and build output
+node_modules/
+dist/
+
+# Local editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
