@@ -10,6 +10,7 @@ export const useCloudSync = ({ logs, ready, onMerge }) => {
   const [syncState, setSyncState] = useState('idle')
   const [notice, setNotice] = useState(null)
   const [lastSyncedAt, setLastSyncedAt] = useState(null)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
   const logsRef = useRef(logs)
   const mergeRef = useRef(onMerge)
   const sessionRef = useRef(null)
@@ -25,10 +26,11 @@ export const useCloudSync = ({ logs, ready, onMerge }) => {
 
     getSupabaseClient().then(async (client) => {
       if (!active || !client) return
-      const { data: authListener } = client.auth.onAuthStateChange((_event, nextSession) => {
+      const { data: authListener } = client.auth.onAuthStateChange((event, nextSession) => {
         sessionRef.current = nextSession
         setSession(nextSession)
         setAuthLoading(false)
+        if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
         if (!nextSession) {
           setSyncState('idle')
           setLastSyncedAt(null)
@@ -126,6 +128,59 @@ export const useCloudSync = ({ logs, ready, onMerge }) => {
       : { type: 'success', text: `Check ${email} for your sign-in link.` })
   }
 
+  const signUp = async (email, password) => {
+    const supabase = await getSupabaseClient()
+    if (!supabase) return false
+    setNotice({ type: 'info', text: 'Creating your secure account...' })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/` },
+    })
+    setNotice(error
+      ? { type: 'error', text: error.message }
+      : data.session
+        ? { type: 'success', text: 'Account created. Your recovery history is syncing now.' }
+        : { type: 'success', text: `Check ${email} to confirm your account.` })
+    return !error
+  }
+
+  const signIn = async (email, password) => {
+    const supabase = await getSupabaseClient()
+    if (!supabase) return false
+    setNotice({ type: 'info', text: 'Signing you in...' })
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    setNotice(error
+      ? { type: 'error', text: error.message }
+      : { type: 'success', text: 'Welcome back. Your history is syncing.' })
+    return !error
+  }
+
+  const sendPasswordReset = async (email) => {
+    const supabase = await getSupabaseClient()
+    if (!supabase) return false
+    setNotice({ type: 'info', text: 'Sending password reset instructions...' })
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/`,
+    })
+    setNotice(error
+      ? { type: 'error', text: error.message }
+      : { type: 'success', text: `Check ${email} for a password reset link.` })
+    return !error
+  }
+
+  const updatePassword = async (password) => {
+    const supabase = await getSupabaseClient()
+    if (!supabase) return false
+    setNotice({ type: 'info', text: 'Updating your password...' })
+    const { error } = await supabase.auth.updateUser({ password })
+    if (!error) setPasswordRecovery(false)
+    setNotice(error
+      ? { type: 'error', text: error.message }
+      : { type: 'success', text: 'Password updated. You are signed in.' })
+    return !error
+  }
+
   const signOut = async () => {
     const supabase = await getSupabaseClient()
     if (!supabase) return
@@ -142,7 +197,12 @@ export const useCloudSync = ({ logs, ready, onMerge }) => {
     syncState,
     notice,
     lastSyncedAt,
+    passwordRecovery,
     sendMagicLink,
+    signUp,
+    signIn,
+    sendPasswordReset,
+    updatePassword,
     signOut,
     syncNow: () => syncNow({ announce: true }),
   }

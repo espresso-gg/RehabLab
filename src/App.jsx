@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import CloudSyncCard from './CloudSyncCard'
+import AccountScreen from './AccountScreen'
 import { useCloudSync } from './hooks/useCloudSync'
 import { isPlainObject, mergeRecoveryLogs } from './lib/logValidation'
 import './App.css'
@@ -696,6 +697,10 @@ function App() {
   })
 
   useEffect(() => {
+    if (cloud.passwordRecovery) setScreen('account')
+  }, [cloud.passwordRecovery])
+
+  useEffect(() => {
     const handleInstallPrompt = (event) => {
       event.preventDefault()
       setInstallPrompt(event)
@@ -831,7 +836,7 @@ function App() {
 
   return (
     <div className="app">
-      {screen === 'progress' ? <ProgressScreen logs={logs} onRestoreLogs={handleRestoreLogs} cloud={cloud} /> : screen === 'history' ? <HistoryScreen logs={logs} /> : <>
+      {screen === 'account' ? <AccountScreen cloud={cloud} onContinue={() => setScreen('today')} /> : screen === 'progress' ? <ProgressScreen logs={logs} onRestoreLogs={handleRestoreLogs} cloud={cloud} /> : screen === 'history' ? <HistoryScreen logs={logs} /> : <>
       <header className="header">
         <div className="header-topline">
           <p className="header-eyebrow">DAILY CHECK-IN</p>
@@ -1003,6 +1008,7 @@ function App() {
         <button type="button" className={screen === 'today' ? 'active' : ''} onClick={() => setScreen('today')} aria-current={screen === 'today' ? 'page' : undefined}><span>＋</span>Today</button>
         <button type="button" className={screen === 'history' ? 'active' : ''} onClick={() => setScreen('history')} aria-current={screen === 'history' ? 'page' : undefined}><span>▦</span>History</button>
         <button type="button" className={screen === 'progress' ? 'active' : ''} onClick={() => setScreen('progress')} aria-current={screen === 'progress' ? 'page' : undefined}><span>⌁</span>Progress</button>
+        <button type="button" className={screen === 'account' ? 'active' : ''} onClick={() => setScreen('account')} aria-current={screen === 'account' ? 'page' : undefined}><span>○</span>Account</button>
       </nav>
     </div>
   )
