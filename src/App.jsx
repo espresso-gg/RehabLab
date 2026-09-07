@@ -27,6 +27,12 @@ const getYesterdayKey = () => {
   return getLocalDateKey(yesterday)
 }
 
+const getDateFromKey = (dateKey) => new Date(`${dateKey}T12:00:00`)
+
+const capitalize = (value) => value
+  ? value.charAt(0).toUpperCase() + value.slice(1)
+  : 'Not recorded'
+
 const getActivityId = () => (
   globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
 )
@@ -296,6 +302,150 @@ const ProgressScreen = ({ logs }) => {
   )
 }
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+const HistoryScreen = ({ logs }) => {
+  const savedDates = Object.keys(logs).sort()
+  const latestDate = savedDates.at(-1) || getTodayKey()
+  const [selectedDate, setSelectedDate] = useState(latestDate)
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const date = getDateFromKey(latestDate)
+    return new Date(date.getFullYear(), date.getMonth(), 1, 12)
+  })
+
+  const year = visibleMonth.getFullYear()
+  const month = visibleMonth.getMonth()
+  const today = new Date()
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth()
+  const firstWeekday = new Date(year, month, 1, 12).getDay()
+  const daysInMonth = new Date(year, month + 1, 0, 12).getDate()
+  const calendarCells = [
+    ...Array.from({ length: firstWeekday }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+  ]
+  while (calendarCells.length % 7 !== 0) calendarCells.push(null)
+
+  const selectedLog = logs[selectedDate] || null
+  const selectedActivities = selectedLog?.activities || []
+  const selectedActivityMinutes = selectedActivities.reduce((sum, activity) => sum + (activity.duration || 0), 0)
+
+  const changeMonth = (offset) => {
+    setVisibleMonth(new Date(year, month + offset, 1, 12))
+  }
+
+  const showToday = () => {
+    const today = new Date()
+    setVisibleMonth(new Date(today.getFullYear(), today.getMonth(), 1, 12))
+    setSelectedDate(getTodayKey())
+  }
+
+  return (
+    <main className="history-screen">
+      <div className="history-heading">
+        <p className="header-eyebrow">RECOVERY JOURNAL</p>
+        <h1>Your daily history</h1>
+        <p className="date">Choose a day to revisit your check-in.</p>
+      </div>
+
+      <section className="calendar-card" aria-label="Check-in calendar">
+        <div className="calendar-toolbar">
+          <button type="button" className="month-arrow" onClick={() => changeMonth(-1)} aria-label="Previous month">‹</button>
+          <div>
+            <p className="calendar-month">{visibleMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+            <button type="button" className="today-link" onClick={showToday}>Jump to today</button>
+          </div>
+          <button type="button" className="month-arrow" onClick={() => changeMonth(1)} aria-label="Next month" disabled={isCurrentMonth}>›</button>
+        </div>
+
+        <div className="calendar-weekdays" aria-hidden="true">
+          {WEEKDAYS.map((day) => <span key={day}>{day}</span>)}
+        </div>
+        <div className="calendar-grid">
+          {calendarCells.map((day, index) => {
+            if (!day) return <span className="calendar-blank" key={`blank-${index}`} />
+            const dateKey = getLocalDateKey(new Date(year, month, day, 12))
+            const log = logs[dateKey]
+            const isToday = dateKey === getTodayKey()
+            const isSelected = dateKey === selectedDate
+            const isFuture = dateKey > getTodayKey()
+            return (
+              <button
+                type="button"
+                key={dateKey}
+                className={`calendar-day ${log ? 'has-log' : ''} ${isToday ? 'is-today' : ''} ${isSelected ? 'selected' : ''}`}
+                onClick={() => setSelectedDate(dateKey)}
+                disabled={isFuture}
+                aria-label={`${formatLogDate(dateKey, { month: 'long', day: 'numeric', year: 'numeric' })}${log ? `, pain ${log.worstPain ?? 'not recorded'}` : ', no check-in'}`}
+                aria-pressed={isSelected}
+              >
+                <span className="day-number">{day}</span>
+                {log && <span className="day-score">{typeof log.worstPain === 'number' ? log.worstPain : '✓'}</span>}
+              </button>
+            )
+          })}
+        </div>
+        <div className="calendar-legend"><span><i /> Logged day</span><span>Badge = worst pain</span></div>
+      </section>
+
+      <section className={`history-detail-card ${selectedLog ? 'has-entry' : ''}`} aria-live="polite">
+        <div className="history-detail-heading">
+          <div>
+            <p className="section-kicker">{selectedDate === getTodayKey() ? 'TODAY' : 'DAILY CHECK-IN'}</p>
+            <h2>{formatLogDate(selectedDate, { weekday: 'long', month: 'long', day: 'numeric' })}</h2>
+          </div>
+          {selectedLog && <span className="history-year">{getDateFromKey(selectedDate).getFullYear()}</span>}
+        </div>
+
+        {!selectedLog ? (
+          <div className="history-empty">
+            <span aria-hidden="true">○</span>
+            <h3>No check-in saved</h3>
+            <p>This day is still an open page in your recovery journal.</p>
+          </div>
+        ) : (
+          <>
+            <div className="pain-summary">
+              <div><strong>{selectedLog.morningPain ?? '—'}</strong><span>Morning pain</span></div>
+              <div className="pain-summary-primary"><strong>{selectedLog.worstPain ?? '—'}</strong><span>Worst pain</span></div>
+              <span className="pain-scale">out of 10</span>
+            </div>
+
+            <div className="history-facts">
+              <div><span>Leg symptoms</span><strong>{capitalize(selectedLog.legSymptoms)}</strong></div>
+              <div><span>Weakness</span><strong>{capitalize(selectedLog.weakness)}</strong></div>
+              <div><span>Sleep</span><strong>{capitalize(selectedLog.sleep)}</strong></div>
+              <div><span>Sleep position</span><strong>{capitalize(selectedLog.sleepingPosition)}</strong></div>
+            </div>
+
+            <div className="history-section-heading">
+              <div><p className="section-kicker">ACTIVITY</p><h3>{selectedActivities.length ? `${selectedActivityMinutes} minutes total` : 'No activity recorded'}</h3></div>
+              {selectedActivities.length > 0 && <span>{selectedActivities.length} {selectedActivities.length === 1 ? 'entry' : 'entries'}</span>}
+            </div>
+            {selectedActivities.length > 0 && (
+              <div className="history-activities">
+                {selectedActivities.map((activity) => (
+                  <div key={activity.id}>
+                    <span className="history-activity-icon">{activity.icon}</span>
+                    <strong>{activity.label}</strong>
+                    <span>{activity.duration} min</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {selectedLog.notes && (
+              <div className="history-note">
+                <p className="section-kicker">NOTE TO SELF</p>
+                <p>“{selectedLog.notes}”</p>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+    </main>
+  )
+}
+
 function App() {
   const [logs, setLogs] = useState({})
   const [currentLog, setCurrentLog] = useState(null)
@@ -396,7 +546,7 @@ function App() {
 
   return (
     <div className="app">
-      {screen === 'progress' ? <ProgressScreen logs={logs} /> : <>
+      {screen === 'progress' ? <ProgressScreen logs={logs} /> : screen === 'history' ? <HistoryScreen logs={logs} /> : <>
       <header className="header">
         <p className="header-eyebrow">DAILY CHECK-IN</p>
         <h1>How are you feeling?</h1>
@@ -549,6 +699,7 @@ function App() {
       </>}
       <nav className="bottom-nav" aria-label="Primary navigation">
         <button type="button" className={screen === 'today' ? 'active' : ''} onClick={() => setScreen('today')} aria-current={screen === 'today' ? 'page' : undefined}><span>＋</span>Today</button>
+        <button type="button" className={screen === 'history' ? 'active' : ''} onClick={() => setScreen('history')} aria-current={screen === 'history' ? 'page' : undefined}><span>▦</span>History</button>
         <button type="button" className={screen === 'progress' ? 'active' : ''} onClick={() => setScreen('progress')} aria-current={screen === 'progress' ? 'page' : undefined}><span>⌁</span>Progress</button>
       </nav>
     </div>
