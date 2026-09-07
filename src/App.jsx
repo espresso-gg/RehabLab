@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
 const STORAGE_KEY = 'rehablab_logs'
@@ -254,7 +254,181 @@ const TrendChart = ({ entries }) => {
   )
 }
 
-const ProgressScreen = ({ logs }) => {
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+const isValidDateKey = (value) => (
+  typeof value === 'string'
+  && /^\d{4}-\d{2}-\d{2}$/.test(value)
+  && getLocalDateKey(getDateFromKey(value)) === value
+)
+
+const safeChoice = (value, choices) => choices.includes(value) ? value : null
+
+const sanitizePain = (value) => (
+  Number.isInteger(value) && value >= 0 && value <= 10 ? value : null
+)
+
+const sanitizeActivity = (activity) => {
+  if (!isPlainObject(activity)) return null
+  const duration = Number(activity.duration)
+  if (!Number.isFinite(duration) || duration < 1 || duration > 1440) return null
+
+  return {
+    id: getActivityId(),
+    type: typeof activity.type === 'string' ? activity.type.slice(0, 40) : 'other',
+    icon: typeof activity.icon === 'string' ? activity.icon.slice(0, 12) : '•',
+    label: typeof activity.label === 'string' && activity.label.trim() ? activity.label.trim().slice(0, 80) : 'Activity',
+    duration: Math.round(duration),
+  }
+}
+
+const sanitizeLog = (log, date) => {
+  if (!isPlainObject(log)) return null
+  const savedAtTime = typeof log.savedAt === 'string' ? Date.parse(log.savedAt) : Number.NaN
+
+  return {
+    date,
+    morningPain: sanitizePain(log.morningPain),
+    worstPain: sanitizePain(log.worstPain),
+    legSymptoms: safeChoice(log.legSymptoms, ['none', 'better', 'same', 'worse']),
+    weakness: safeChoice(log.weakness, ['none', 'same', 'worse']),
+    activities: Array.isArray(log.activities) ? log.activities.map(sanitizeActivity).filter(Boolean).slice(0, 50) : [],
+    sleep: safeChoice(log.sleep, ['good', 'okay', 'bad']),
+    sleepingPosition: safeChoice(log.sleepingPosition, ['back', 'side', 'front', 'mixed']),
+    notes: typeof log.notes === 'string' ? log.notes.slice(0, 10000) : '',
+    savedAt: Number.isNaN(savedAtTime) ? null : new Date(savedAtTime).toISOString(),
+  }
+}
+
+const getSavedTime = (log) => {
+  const value = log?.savedAt ? Date.parse(log.savedAt) : Number.NaN
+  return Number.isNaN(value) ? 0 : value
+}
+
+const downloadFile = (filename, contents, type) => {
+  const url = URL.createObjectURL(new Blob([contents], { type }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+const csvCell = (value) => {
+  let text = value === null || value === undefined ? '' : String(value)
+  if (/^[\t\r\n ]*[=+\-@]/.test(text)) text = `'${text}`
+  return `"${text.replaceAll('"', '""')}"`
+}
+
+const DataTools = ({ logs, onRestoreLogs }) => {
+  const fileInputRef = useRef(null)
+  const [status, setStatus] = useState(null)
+  const savedCount = Object.keys(logs).length
+
+  const exportBackup = () => {
+    const backup = {
+      app: 'RehabLab',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      logs,
+    }
+    downloadFile(`rehablab-backup-${getTodayKey()}.json`, JSON.stringify(backup, null, 2), 'application/json')
+    setStatus({ type: 'success', text: `Backup downloaded with ${savedCount} ${savedCount === 1 ? 'day' : 'days'}.` })
+  }
+
+  const exportCsv = () => {
+    const headings = ['Date', 'Morning pain', 'Worst pain', 'Leg symptoms', 'Weakness', 'Activities', 'Activity minutes', 'Sleep', 'Sleeping position', 'Notes', 'Saved at']
+    const rows = Object.keys(logs).sort().map((date) => {
+      const log = logs[date]
+      const activities = (log.activities || []).map((activity) => `${activity.label} (${activity.duration} min)`).join('; ')
+      const activityMinutes = (log.activities || []).reduce((total, activity) => total + (activity.duration || 0), 0)
+      return [date, log.morningPain, log.worstPain, log.legSymptoms, log.weakness, activities, activityMinutes, log.sleep, log.sleepingPosition, log.notes, log.savedAt]
+    })
+    const csv = [headings, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
+    downloadFile(`rehablab-records-${getTodayKey()}.csv`, `\uFEFF${csv}`, 'text/csv;charset=utf-8')
+    setStatus({ type: 'success', text: `CSV downloaded with ${savedCount} ${savedCount === 1 ? 'row' : 'rows'}.` })
+  }
+
+  const restoreBackup = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    try {
+      if (file.size > 5 * 1024 * 1024) throw new Error('That backup is larger than the 5 MB safety limit.')
+      const payload = JSON.parse(await file.text())
+      const incomingLogs = payload?.app === 'RehabLab' && payload.version === 1 && isPlainObject(payload.logs) ? payload.logs : null
+      if (!incomingLogs) throw new Error('This is not a valid RehabLab backup file.')
+
+      const incomingEntries = Object.entries(incomingLogs)
+      if (incomingEntries.length > 5000) throw new Error('This backup contains too many daily records.')
+
+      const mergedLogs = { ...logs }
+      let restored = 0
+      let keptLocal = 0
+      let skipped = 0
+
+      incomingEntries.forEach(([date, rawLog]) => {
+        if (!isValidDateKey(date)) {
+          skipped += 1
+          return
+        }
+        const incomingLog = sanitizeLog(rawLog, date)
+        if (!incomingLog) {
+          skipped += 1
+          return
+        }
+
+        const localLog = mergedLogs[date]
+        if (!localLog || getSavedTime(incomingLog) > getSavedTime(localLog)) {
+          mergedLogs[date] = incomingLog
+          restored += 1
+        } else {
+          keptLocal += 1
+        }
+      })
+
+      if (incomingEntries.length > 0 && restored === 0 && keptLocal === 0) {
+        throw new Error('No valid daily records were found in this backup.')
+      }
+
+      onRestoreLogs(mergedLogs)
+      const details = [
+        `${restored} ${restored === 1 ? 'day' : 'days'} restored`,
+        keptLocal ? `${keptLocal} newer local ${keptLocal === 1 ? 'day' : 'days'} kept` : null,
+        skipped ? `${skipped} invalid skipped` : null,
+      ].filter(Boolean).join(' · ')
+      setStatus({ type: 'success', text: details || 'Your local records are already up to date.' })
+    } catch (error) {
+      setStatus({ type: 'error', text: error instanceof Error ? error.message : 'The backup could not be restored.' })
+    }
+  }
+
+  return (
+    <section className="progress-card data-card" aria-labelledby="data-heading">
+      <div className="data-heading-row">
+        <div className="privacy-mark" aria-hidden="true">◇</div>
+        <div>
+          <p className="section-kicker">YOUR DATA</p>
+          <h2 id="data-heading">Private by default</h2>
+        </div>
+        <span className="local-badge">On this device</span>
+      </div>
+      <p className="data-description">Your check-ins are stored only in this browser. Download a backup so your recovery history stays in your hands.</p>
+      <div className="data-actions">
+        <button type="button" className="data-action primary" onClick={exportBackup}><span aria-hidden="true">↓</span> Backup</button>
+        <button type="button" className="data-action" onClick={exportCsv}><span aria-hidden="true">▤</span> CSV</button>
+        <button type="button" className="data-action" onClick={() => fileInputRef.current?.click()}><span aria-hidden="true">↑</span> Restore</button>
+      </div>
+      <input ref={fileInputRef} className="visually-hidden" type="file" accept="application/json,.json" onChange={restoreBackup} tabIndex={-1} />
+      {status && <p className={`data-status ${status.type}`} role="status">{status.text}</p>}
+    </section>
+  )
+}
+
+const ProgressScreen = ({ logs, onRestoreLogs }) => {
   const [range, setRange] = useState(7)
   const [selectedDate, setSelectedDate] = useState(null)
   const dateKeys = getDateRange(range)
@@ -413,6 +587,8 @@ const ProgressScreen = ({ logs }) => {
           {selectedLog.notes && <p className="detail-note">“{selectedLog.notes}”</p>}
         </section>
       )}
+
+      <DataTools logs={logs} onRestoreLogs={onRestoreLogs} />
     </main>
   )
 }
@@ -673,6 +849,17 @@ function App() {
     setTimeout(() => setSaved(false), 3000)
   }
 
+  const handleRestoreLogs = (restoredLogs) => {
+    saveLogs(restoredLogs)
+    setLogs(restoredLogs)
+
+    const restoredToday = restoredLogs[getTodayKey()]
+    if (restoredToday && !isDirty) {
+      setCurrentLog({ ...restoredToday })
+      setShowMoreDetails(Boolean(restoredToday.notes || restoredToday.sleepingPosition))
+    }
+  }
+
   const handleInstallApp = async () => {
     if (!installPrompt) return
     installPrompt.prompt()
@@ -697,7 +884,7 @@ function App() {
 
   return (
     <div className="app">
-      {screen === 'progress' ? <ProgressScreen logs={logs} /> : screen === 'history' ? <HistoryScreen logs={logs} /> : <>
+      {screen === 'progress' ? <ProgressScreen logs={logs} onRestoreLogs={handleRestoreLogs} /> : screen === 'history' ? <HistoryScreen logs={logs} /> : <>
       <header className="header">
         <div className="header-topline">
           <p className="header-eyebrow">DAILY CHECK-IN</p>

@@ -108,6 +108,22 @@
 .detail-pills { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .detail-pills span { padding: 7px 9px; border-radius: 8px; background: #e7f3ef; color: #3d6c62; font-size: 12px; }
 .detail-note { color: #54716c; font-size: 13px; line-height: 1.5; margin-top: 12px; }
+.data-card { margin-top: 4px; background: linear-gradient(145deg, #fff 35%, #f3f9f7); }
+.data-heading-row { display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 10px; }
+.data-heading-row h2 { margin-top: 4px; }
+.privacy-mark { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #c9e0da; border-radius: 12px; background: #e8f4f1; color: #287d6d; font-size: 22px; }
+.local-badge { padding: 5px 7px; border: 1px solid #d9e7e3; border-radius: 999px; color: #69827c; font-size: 8px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; }
+.data-description { margin-top: 13px; color: #6d8580; font-size: 12px; line-height: 1.5; }
+.data-actions { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 7px; margin-top: 14px; }
+.data-action { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 40px; padding: 8px 7px; border: 1px solid #cbded9; border-radius: 10px; background: rgba(255,255,255,.84); color: #38655c; font-size: 11px; font-weight: 750; cursor: pointer; }
+.data-action.primary { border-color: #287d6d; background: #287d6d; color: #fff; }
+.data-action:hover { border-color: #7caaa0; }
+.data-action:active { transform: translateY(1px); }
+.data-action span { font-size: 15px; line-height: 1; }
+.data-status { margin-top: 11px; padding: 9px 10px; border-radius: 9px; font-size: 10px; line-height: 1.4; }
+.data-status.success { background: #e6f4ef; color: #2d6c60; }
+.data-status.error { background: #fff0e5; color: #92572d; }
+.visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
 
 .bottom-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; padding: 8px; border: 1px solid #e2ece9; border-radius: 16px; background: rgba(255,255,255,.88); box-shadow: 0 5px 18px rgba(31,70,65,.07); }
 .bottom-nav button { min-height: 48px; border: 0; border-radius: 11px; background: transparent; color: #79918c; font-size: 13px; font-weight: 700; cursor: pointer; }
