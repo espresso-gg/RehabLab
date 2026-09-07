@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import CloudSyncCard from './CloudSyncCard'
+import { useCloudSync } from './hooks/useCloudSync'
+import { isPlainObject, mergeRecoveryLogs } from './lib/logValidation'
 import './App.css'
 
 const STORAGE_KEY = 'rehablab_logs'
@@ -254,57 +257,6 @@ const TrendChart = ({ entries }) => {
   )
 }
 
-const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-
-const isValidDateKey = (value) => (
-  typeof value === 'string'
-  && /^\d{4}-\d{2}-\d{2}$/.test(value)
-  && getLocalDateKey(getDateFromKey(value)) === value
-)
-
-const safeChoice = (value, choices) => choices.includes(value) ? value : null
-
-const sanitizePain = (value) => (
-  Number.isInteger(value) && value >= 0 && value <= 10 ? value : null
-)
-
-const sanitizeActivity = (activity) => {
-  if (!isPlainObject(activity)) return null
-  const duration = Number(activity.duration)
-  if (!Number.isFinite(duration) || duration < 1 || duration > 1440) return null
-
-  return {
-    id: getActivityId(),
-    type: typeof activity.type === 'string' ? activity.type.slice(0, 40) : 'other',
-    icon: typeof activity.icon === 'string' ? activity.icon.slice(0, 12) : '•',
-    label: typeof activity.label === 'string' && activity.label.trim() ? activity.label.trim().slice(0, 80) : 'Activity',
-    duration: Math.round(duration),
-  }
-}
-
-const sanitizeLog = (log, date) => {
-  if (!isPlainObject(log)) return null
-  const savedAtTime = typeof log.savedAt === 'string' ? Date.parse(log.savedAt) : Number.NaN
-
-  return {
-    date,
-    morningPain: sanitizePain(log.morningPain),
-    worstPain: sanitizePain(log.worstPain),
-    legSymptoms: safeChoice(log.legSymptoms, ['none', 'better', 'same', 'worse']),
-    weakness: safeChoice(log.weakness, ['none', 'same', 'worse']),
-    activities: Array.isArray(log.activities) ? log.activities.map(sanitizeActivity).filter(Boolean).slice(0, 50) : [],
-    sleep: safeChoice(log.sleep, ['good', 'okay', 'bad']),
-    sleepingPosition: safeChoice(log.sleepingPosition, ['back', 'side', 'front', 'mixed']),
-    notes: typeof log.notes === 'string' ? log.notes.slice(0, 10000) : '',
-    savedAt: Number.isNaN(savedAtTime) ? null : new Date(savedAtTime).toISOString(),
-  }
-}
-
-const getSavedTime = (log) => {
-  const value = log?.savedAt ? Date.parse(log.savedAt) : Number.NaN
-  return Number.isNaN(value) ? 0 : value
-}
-
 const downloadFile = (filename, contents, type) => {
   const url = URL.createObjectURL(new Blob([contents], { type }))
   const link = document.createElement('a')
@@ -365,30 +317,7 @@ const DataTools = ({ logs, onRestoreLogs }) => {
       const incomingEntries = Object.entries(incomingLogs)
       if (incomingEntries.length > 5000) throw new Error('This backup contains too many daily records.')
 
-      const mergedLogs = { ...logs }
-      let restored = 0
-      let keptLocal = 0
-      let skipped = 0
-
-      incomingEntries.forEach(([date, rawLog]) => {
-        if (!isValidDateKey(date)) {
-          skipped += 1
-          return
-        }
-        const incomingLog = sanitizeLog(rawLog, date)
-        if (!incomingLog) {
-          skipped += 1
-          return
-        }
-
-        const localLog = mergedLogs[date]
-        if (!localLog || getSavedTime(incomingLog) > getSavedTime(localLog)) {
-          mergedLogs[date] = incomingLog
-          restored += 1
-        } else {
-          keptLocal += 1
-        }
-      })
+      const { logs: mergedLogs, restored, keptLocal, skipped } = mergeRecoveryLogs(logs, incomingLogs)
 
       if (incomingEntries.length > 0 && restored === 0 && keptLocal === 0) {
         throw new Error('No valid daily records were found in this backup.')
@@ -428,7 +357,7 @@ const DataTools = ({ logs, onRestoreLogs }) => {
   )
 }
 
-const ProgressScreen = ({ logs, onRestoreLogs }) => {
+const ProgressScreen = ({ logs, onRestoreLogs, cloud }) => {
   const [range, setRange] = useState(7)
   const [selectedDate, setSelectedDate] = useState(null)
   const dateKeys = getDateRange(range)
@@ -588,6 +517,7 @@ const ProgressScreen = ({ logs, onRestoreLogs }) => {
         </section>
       )}
 
+      <CloudSyncCard cloud={cloud} />
       <DataTools logs={logs} onRestoreLogs={onRestoreLogs} />
     </main>
   )
@@ -748,6 +678,23 @@ function App() {
   const [screen, setScreen] = useState('today')
   const [installPrompt, setInstallPrompt] = useState(null)
 
+  const handleCloudMerge = (syncedLogs) => {
+    saveLogs(syncedLogs)
+    setLogs(syncedLogs)
+
+    const syncedToday = syncedLogs[getTodayKey()]
+    if (syncedToday && !isDirty) {
+      setCurrentLog({ ...syncedToday })
+      setShowMoreDetails(Boolean(syncedToday.notes || syncedToday.sleepingPosition))
+    }
+  }
+
+  const cloud = useCloudSync({
+    logs,
+    ready: currentLog !== null,
+    onMerge: handleCloudMerge,
+  })
+
   useEffect(() => {
     const handleInstallPrompt = (event) => {
       event.preventDefault()
@@ -884,7 +831,7 @@ function App() {
 
   return (
     <div className="app">
-      {screen === 'progress' ? <ProgressScreen logs={logs} onRestoreLogs={handleRestoreLogs} /> : screen === 'history' ? <HistoryScreen logs={logs} /> : <>
+      {screen === 'progress' ? <ProgressScreen logs={logs} onRestoreLogs={handleRestoreLogs} cloud={cloud} /> : screen === 'history' ? <HistoryScreen logs={logs} /> : <>
       <header className="header">
         <div className="header-topline">
           <p className="header-eyebrow">DAILY CHECK-IN</p>
