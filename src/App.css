@@ -57,7 +57,46 @@
 .metric-icon { color: #63a293; font-size: 22px; line-height: 1; }
 .metric-card strong { color: #19312f; font-size: 25px; line-height: 1; margin-top: 5px; }
 .metric-card strong small { color: #7f9892; font-size: 13px; font-weight: 600; }
-.metric-card > span:last-child { color: #78918b; font-size: 12px; }
+.metric-card > span:last-child,
+.metric-card > strong + span { color: #78918b; font-size: 12px; }
+.metric-trend { display: block; margin-top: 6px; color: #8aa09b; font-size: 9px; line-height: 1.3; }
+.comparison-card { position: relative; display: grid; grid-template-columns: 42px 1fr; gap: 12px; overflow: hidden; }
+.comparison-card::after { content: ''; position: absolute; right: -25px; bottom: -38px; width: 100px; height: 100px; border-radius: 50%; background: rgba(117,214,189,.09); }
+.comparison-mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: #edf5f3; color: #4f7e75; font-size: 23px; font-weight: 750; }
+.comparison-card.lower .comparison-mark { background: #daf1ea; color: #23705f; }
+.comparison-card.higher .comparison-mark { background: #fff0e2; color: #a3612d; }
+.comparison-copy h2 { margin-top: 4px; }
+.comparison-copy > p:last-child { margin-top: 6px; color: #6f8782; font-size: 12px; line-height: 1.45; }
+.period-averages { grid-column: 1 / -1; display: flex; align-items: center; gap: 9px; margin-top: 3px; padding: 9px 11px; border-radius: 11px; background: #f5f9f8; }
+.period-averages span { display: flex; align-items: baseline; gap: 5px; }
+.period-averages small { color: #8ba09c; font-size: 9px; font-weight: 750; text-transform: uppercase; letter-spacing: .6px; }
+.period-averages strong { color: #294e47; font-size: 15px; }
+.period-averages i { color: #9bb0ab; font-size: 12px; font-style: normal; }
+.consistency-card .card-heading { align-items: center; margin-bottom: 14px; }
+.coverage-badge { display: grid; place-items: center; min-width: 43px; height: 28px; padding: 0 8px; border-radius: 999px; background: #e5f3ef; color: #287d6d; font-size: 11px; font-weight: 800; }
+.consistency-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+.consistency-grid > div { display: flex; flex-direction: column; gap: 5px; padding: 2px 10px; border-left: 1px solid #e5eeeb; }
+.consistency-grid > div:first-child { padding-left: 0; border-left: 0; }
+.consistency-grid strong { color: #274c45; font-size: 21px; line-height: 1; }
+.consistency-grid strong small { color: #78918c; font-size: 10px; }
+.consistency-grid span { color: #849b96; font-size: 9px; line-height: 1.2; }
+.coverage-track { height: 5px; margin-top: 15px; overflow: hidden; border-radius: 99px; background: #e9f1ef; }
+.coverage-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #287d6d, #75cbb6); transition: width .3s ease; }
+.symptoms-card .card-heading { margin-bottom: 14px; }
+.symptom-bar { display: flex; height: 12px; overflow: hidden; border-radius: 99px; background: #edf3f1; }
+.symptom-bar span { height: 100%; min-width: 3px; }
+.symptom-bar .better,
+.symptom-legend i.better { background: #65bca7; }
+.symptom-bar .same,
+.symptom-legend i.same { background: #8faada; }
+.symptom-bar .worse,
+.symptom-legend i.worse { background: #e6a36c; }
+.symptom-bar .none,
+.symptom-legend i.none { background: #c7d7d3; }
+.symptom-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top: 13px; }
+.symptom-legend > div { display: grid; grid-template-columns: 8px 1fr auto; align-items: center; gap: 7px; color: #718984; font-size: 11px; }
+.symptom-legend i { width: 8px; height: 8px; border-radius: 3px; }
+.symptom-legend strong { color: #36564f; font-size: 11px; }
 .recent-card .card-heading { margin-bottom: 12px; }
 .recent-list { display: grid; gap: 7px; }
 .recent-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 8px 10px; border: 1px solid #edf3f1; border-radius: 10px; background: #f7faf9; color: #66807a; text-align: left; font-size: 12px; cursor: pointer; }

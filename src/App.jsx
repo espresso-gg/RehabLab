@@ -198,11 +198,11 @@ const formatLogDate = (dateKey, options = { weekday: 'short', month: 'short', da
   new Date(`${dateKey}T12:00:00`).toLocaleDateString('en-US', options)
 )
 
-const getDateRange = (days) => {
+const getDateRange = (days, endOffset = 0) => {
   const range = []
   const date = new Date()
   date.setHours(12, 0, 0, 0)
-  for (let offset = days - 1; offset >= 0; offset -= 1) {
+  for (let offset = days - 1 + endOffset; offset >= endOffset; offset -= 1) {
     const day = new Date(date)
     day.setDate(date.getDate() - offset)
     range.push(getLocalDateKey(day))
@@ -210,7 +210,27 @@ const getDateRange = (days) => {
   return range
 }
 
-const average = (values) => values.length ? (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1) : '—'
+const averageValue = (values) => values.length
+  ? values.reduce((sum, value) => sum + value, 0) / values.length
+  : null
+
+const average = (values) => {
+  const value = averageValue(values)
+  return value === null ? '—' : value.toFixed(1)
+}
+
+const getLoggingStreak = (logs) => {
+  const cursor = new Date()
+  cursor.setHours(12, 0, 0, 0)
+  if (!logs[getLocalDateKey(cursor)]) cursor.setDate(cursor.getDate() - 1)
+
+  let streak = 0
+  while (logs[getLocalDateKey(cursor)]) {
+    streak += 1
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  return streak
+}
 
 const TrendChart = ({ entries }) => {
   const values = entries.map((log) => log?.worstPain ?? null)
@@ -238,12 +258,48 @@ const ProgressScreen = ({ logs }) => {
   const [range, setRange] = useState(7)
   const [selectedDate, setSelectedDate] = useState(null)
   const dateKeys = getDateRange(range)
+  const previousDateKeys = getDateRange(range, range)
   const entries = dateKeys.map((date) => logs[date] || null)
+  const previousEntries = previousDateKeys.map((date) => logs[date] || null).filter(Boolean)
   const loggedEntries = entries.filter(Boolean)
   const painValues = loggedEntries.map((log) => log.worstPain).filter((value) => typeof value === 'number')
+  const previousPainValues = previousEntries.map((log) => log.worstPain).filter((value) => typeof value === 'number')
+  const currentPainAverage = averageValue(painValues)
+  const previousPainAverage = averageValue(previousPainValues)
+  const hasPainComparison = painValues.length >= 2 && previousPainValues.length >= 2
+  const painDelta = hasPainComparison ? currentPainAverage - previousPainAverage : null
+  const painDirection = painDelta === null || Math.abs(painDelta) < 0.3
+    ? 'steady'
+    : painDelta < 0 ? 'lower' : 'higher'
   const activityMinutes = loggedEntries.reduce((total, log) => total + (log.activities || []).reduce((sum, activity) => sum + (activity.duration || 0), 0), 0)
+  const previousActivityMinutes = previousEntries.reduce((total, log) => total + (log.activities || []).reduce((sum, activity) => sum + (activity.duration || 0), 0), 0)
+  const activityPerLoggedDay = loggedEntries.length ? activityMinutes / loggedEntries.length : null
+  const previousActivityPerLoggedDay = previousEntries.length ? previousActivityMinutes / previousEntries.length : null
+  const activityChange = activityPerLoggedDay !== null && previousActivityPerLoggedDay !== null
+    ? activityPerLoggedDay - previousActivityPerLoggedDay
+    : null
   const goodSleep = loggedEntries.filter((log) => log.sleep === 'good').length
+  const streak = getLoggingStreak(logs)
+  const missedDays = dateKeys.filter((date) => date < getTodayKey() && !logs[date]).length
+  const coverage = Math.round((loggedEntries.length / range) * 100)
+  const symptomEntries = loggedEntries.filter((log) => log.legSymptoms)
+  const symptomTypes = [
+    { value: 'better', label: 'Better' },
+    { value: 'same', label: 'Same' },
+    { value: 'worse', label: 'Worse' },
+    { value: 'none', label: 'None' },
+  ]
+  const symptomCounts = symptomTypes.map((type) => ({
+    ...type,
+    count: symptomEntries.filter((log) => log.legSymptoms === type.value).length,
+  }))
   const selectedLog = selectedDate ? logs[selectedDate] : null
+
+  const painChangeCopy = painDirection === 'lower'
+    ? `Your recorded average was ${Math.abs(painDelta).toFixed(1)} points lower than the previous ${range} days.`
+    : painDirection === 'higher'
+      ? `Your recorded average was ${Math.abs(painDelta).toFixed(1)} points higher than the previous ${range} days.`
+      : `Your recorded average was about the same as the previous ${range} days.`
 
   return (
     <main className="progress-screen">
@@ -268,10 +324,69 @@ const ProgressScreen = ({ logs }) => {
         <TrendChart entries={entries} />
       </section>
 
+      <section className={`progress-card comparison-card ${hasPainComparison ? painDirection : 'insufficient'}`} aria-labelledby="comparison-heading">
+        <div className="comparison-mark" aria-hidden="true">
+          {hasPainComparison ? painDirection === 'lower' ? '↓' : painDirection === 'higher' ? '↑' : '↔' : '···'}
+        </div>
+        <div className="comparison-copy">
+          <p className="section-kicker">RECORDED CHANGE</p>
+          <h2 id="comparison-heading">{hasPainComparison ? painDirection === 'steady' ? 'Holding steady' : `${capitalize(painDirection)} than before` : 'A pattern is taking shape'}</h2>
+          <p>{hasPainComparison ? painChangeCopy : 'Log a pain score on at least two days in both periods to see a useful comparison.'}</p>
+        </div>
+        {hasPainComparison && (
+          <div className="period-averages" aria-label="Current and previous pain averages">
+            <span><small>Prior</small><strong>{previousPainAverage.toFixed(1)}</strong></span>
+            <i aria-hidden="true">→</i>
+            <span><small>Now</small><strong>{currentPainAverage.toFixed(1)}</strong></span>
+          </div>
+        )}
+      </section>
+
+      <section className="progress-card consistency-card" aria-labelledby="consistency-heading">
+        <div className="card-heading">
+          <div><p className="section-kicker">CONSISTENCY</p><h2 id="consistency-heading">Your logging rhythm</h2></div>
+          <span className="coverage-badge">{coverage}%</span>
+        </div>
+        <div className="consistency-grid">
+          <div><strong>{streak}<small> days</small></strong><span>current streak</span></div>
+          <div><strong>{loggedEntries.length}<small> / {range}</small></strong><span>days logged</span></div>
+          <div><strong>{missedDays}</strong><span>days missed</span></div>
+        </div>
+        <div className="coverage-track" aria-label={`${loggedEntries.length} of ${range} days logged`}>
+          <span style={{ width: `${coverage}%` }} />
+        </div>
+      </section>
+
       <div className="metric-grid">
-        <section className="progress-card flame-wrap metric-card"><span className="metric-icon">◷</span><strong>{activityMinutes}<small> min</small></strong><span>activity</span></section>
+        <section className="progress-card flame-wrap metric-card">
+          <span className="metric-icon">◷</span><strong>{activityMinutes}<small> min</small></strong><span>activity</span>
+          <small className="metric-trend">{activityChange === null ? 'No prior comparison' : `${activityChange > 0 ? '+' : ''}${activityChange.toFixed(0)} min/logged day vs prior`}</small>
+        </section>
         <section className="progress-card flame-wrap metric-card"><span className="metric-icon">☼</span><strong>{goodSleep}<small> / {loggedEntries.length || 0}</small></strong><span>good sleep</span></section>
       </div>
+
+      <section className="progress-card symptoms-card" aria-labelledby="symptoms-heading">
+        <div className="card-heading">
+          <div><p className="section-kicker">LEG SYMPTOMS</p><h2 id="symptoms-heading">What you recorded</h2></div>
+          <span className="scale-hint">{symptomEntries.length} days</span>
+        </div>
+        {symptomEntries.length === 0 ? (
+          <p className="empty-state">Log leg symptoms to see how they are distributed.</p>
+        ) : (
+          <>
+            <div className="symptom-bar" aria-label={`Leg symptom distribution across ${symptomEntries.length} recorded days`}>
+              {symptomCounts.filter((type) => type.count > 0).map((type) => (
+                <span key={type.value} className={type.value} style={{ width: `${(type.count / symptomEntries.length) * 100}%` }} title={`${type.label}: ${type.count}`} />
+              ))}
+            </div>
+            <div className="symptom-legend">
+              {symptomCounts.map((type) => (
+                <div key={type.value}><i className={type.value} /><span>{type.label}</span><strong>{type.count}</strong></div>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
 
       <section className="progress-card recent-card" aria-labelledby="recent-heading">
         <div className="card-heading"><div><p className="section-kicker">CHECK-INS</p><h2 id="recent-heading">Recent logs</h2></div><span className="scale-hint">{loggedEntries.length} saved</span></div>
