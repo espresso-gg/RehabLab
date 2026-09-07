@@ -138,6 +138,12 @@
   margin-bottom: 26px;
 }
 
+.header-topline { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 28px; }
+.install-app-btn { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 5px 10px; border: 1px solid #c8ddd7; border-radius: 999px; background: rgba(255,255,255,.72); color: #2d6c60; font-size: 11px; font-weight: 750; cursor: pointer; box-shadow: 0 2px 8px rgba(31,70,65,.05); }
+.install-app-btn span { font-size: 14px; line-height: 1; }
+.install-app-btn:hover { border-color: #8fbbb0; background: #fff; }
+.install-app-btn:active { transform: translateY(1px); }
+
 .header-eyebrow,
 .section-kicker {
   color: #4d8278;

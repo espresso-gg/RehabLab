@@ -455,6 +455,22 @@ function App() {
   const [editingActivity, setEditingActivity] = useState(null)
   const [isDirty, setIsDirty] = useState(false)
   const [screen, setScreen] = useState('today')
+  const [installPrompt, setInstallPrompt] = useState(null)
+
+  useEffect(() => {
+    const handleInstallPrompt = (event) => {
+      event.preventDefault()
+      setInstallPrompt(event)
+    }
+    const handleInstalled = () => setInstallPrompt(null)
+
+    window.addEventListener('beforeinstallprompt', handleInstallPrompt)
+    window.addEventListener('appinstalled', handleInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleInstallPrompt)
+      window.removeEventListener('appinstalled', handleInstalled)
+    }
+  }, [])
 
   useEffect(() => {
     const loadedLogs = loadLogs()
@@ -542,6 +558,13 @@ function App() {
     setTimeout(() => setSaved(false), 3000)
   }
 
+  const handleInstallApp = async () => {
+    if (!installPrompt) return
+    installPrompt.prompt()
+    await installPrompt.userChoice
+    setInstallPrompt(null)
+  }
+
   if (!currentLog) {
     return <div className="loading">Loading...</div>
   }
@@ -561,7 +584,14 @@ function App() {
     <div className="app">
       {screen === 'progress' ? <ProgressScreen logs={logs} /> : screen === 'history' ? <HistoryScreen logs={logs} /> : <>
       <header className="header">
-        <p className="header-eyebrow">DAILY CHECK-IN</p>
+        <div className="header-topline">
+          <p className="header-eyebrow">DAILY CHECK-IN</p>
+          {installPrompt && (
+            <button type="button" className="install-app-btn" onClick={handleInstallApp}>
+              <span aria-hidden="true">↓</span> Install app
+            </button>
+          )}
+        </div>
         <h1>How are you feeling?</h1>
         <p className="date">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} <span>·</span> takes less than a minute</p>
       </header>
