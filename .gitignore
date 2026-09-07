@@ -11,3 +11,6 @@ dist/
 Thumbs.db
 .idea/
 .vscode/
+
+# Development logs
+*.log

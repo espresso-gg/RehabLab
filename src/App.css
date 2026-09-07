@@ -398,6 +398,31 @@
   margin-bottom: 12px;
 }
 
+.repeat-yesterday-btn {
+  display: grid;
+  grid-template-columns: 34px 1fr 28px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 58px;
+  margin-bottom: 10px;
+  padding: 9px 10px;
+  border: 1px solid #cfe2dc;
+  border-radius: 12px;
+  background: linear-gradient(110deg, #f3f9f7, #edf7f4);
+  color: #2b5d54;
+  text-align: left;
+  cursor: pointer;
+}
+
+.repeat-yesterday-btn:hover { border-color: #93beb3; }
+.repeat-yesterday-btn:active { transform: scale(.99); }
+.repeat-yesterday-btn > span:nth-child(2) { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.repeat-yesterday-btn strong { font-size: 13px; }
+.repeat-yesterday-btn small { color: #77918b; font-size: 11px; }
+.repeat-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #dceee9; color: #287d6d; font-size: 19px; }
+.repeat-add { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; background: #287d6d; color: white; font-size: 18px; line-height: 1; }
+
 .activity-item {
   display: flex;
   align-items: center;

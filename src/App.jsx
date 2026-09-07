@@ -462,30 +462,25 @@ function App() {
 
     const todayKey = getTodayKey()
     const existingLog = loadedLogs[todayKey]
+    const draft = loadDraft()
+    const hasTodayDraft = draft && draft.date === todayKey
     
-    if (existingLog) {
+    if (hasTodayDraft) {
+      setCurrentLog({ ...getDefaultLog(), ...draft })
+      setShowMoreDetails(Boolean(draft.notes || draft.sleepingPosition))
+      setIsDirty(true)
+    } else if (existingLog) {
       setCurrentLog({ ...existingLog })
       setShowMoreDetails(Boolean(existingLog.notes || existingLog.sleepingPosition))
     } else {
-      const draft = loadDraft()
-      if (draft && draft.date === todayKey && !draft.savedAt) {
-        setCurrentLog({ ...getDefaultLog(), ...draft })
-        setShowMoreDetails(Boolean(draft.notes || draft.sleepingPosition))
-      } else {
-        const defaultLog = getDefaultLog()
-        const yesterdayLog = loadedLogs[getYesterdayKey()]
-        
-        if (yesterdayLog?.activities?.length > 0) {
-          defaultLog.activities = [...yesterdayLog.activities]
-        }
-        
-        setCurrentLog(defaultLog)
-      }
+      setCurrentLog(getDefaultLog())
     }
   }, [])
 
   useEffect(() => {
-    if (currentLog && isDirty) saveDraft({ ...currentLog, savedAt: null })
+    if (currentLog && isDirty) {
+      saveDraft({ ...currentLog, draftUpdatedAt: new Date().toISOString() })
+    }
   }, [currentLog, isDirty])
 
   const updateField = (field, value) => {
@@ -512,10 +507,25 @@ function App() {
     }))
   }
 
+  const repeatYesterdayActivities = () => {
+    const yesterdayActivities = logs[getYesterdayKey()]?.activities || []
+    if (!yesterdayActivities.length) return
+
+    setCurrentLog((prev) => ({
+      ...prev,
+      activities: [
+        ...prev.activities,
+        ...yesterdayActivities.map((activity) => ({ ...activity, id: getActivityId() })),
+      ],
+    }))
+    setIsDirty(true)
+  }
+
   const handleSave = () => {
     const todayKey = getTodayKey()
+    const { draftUpdatedAt: _draftUpdatedAt, ...logFields } = currentLog
     const savedLog = {
-      ...currentLog,
+      ...logFields,
       date: todayKey,
       savedAt: new Date().toISOString(),
     }
@@ -543,6 +553,9 @@ function App() {
     }
     return null
   }
+
+  const yesterdayActivities = logs[getYesterdayKey()]?.activities || []
+  const yesterdayMinutes = yesterdayActivities.reduce((total, activity) => total + (activity.duration || 0), 0)
 
   return (
     <div className="app">
@@ -605,6 +618,16 @@ function App() {
 
         <section className="checkin-card field activity-card">
           <label className="field-label">Activity</label>
+          {currentLog.activities.length === 0 && yesterdayActivities.length > 0 && (
+            <button className="repeat-yesterday-btn" onClick={repeatYesterdayActivities} type="button">
+              <span className="repeat-icon" aria-hidden="true">↻</span>
+              <span>
+                <strong>Repeat yesterday</strong>
+                <small>{yesterdayActivities.length} {yesterdayActivities.length === 1 ? 'activity' : 'activities'} · {yesterdayMinutes} min</small>
+              </span>
+              <span className="repeat-add" aria-hidden="true">+</span>
+            </button>
+          )}
           {currentLog.activities.length > 0 && (
             <div className="activity-list">
               {currentLog.activities.map((activity) => (
